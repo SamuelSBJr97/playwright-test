@@ -1,0 +1,9 @@
+﻿Tag,Role,Acao
+a,link,click
+button,button,click
+input,textbox,type
+a,,click
+button,,click
+input,,type
+div,,ignore
+span,,ignore
