@@ -16,7 +16,7 @@ namespace Test
         public static async Task ClassInit(TestContext context)
         {
             _playwright = await Playwright.CreateAsync();
-            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
             var page = await _browser.NewPageAsync();
             // Altere para a URL real da view
             await page.GotoAsync("https://localhost:5001/BigTable/Index");
