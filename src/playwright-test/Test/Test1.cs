@@ -1,161 +1,87 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Playwright;
-using Microsoft.Playwright.MSTest;
-using Microsoft.ML;
-using Microsoft.ML.Data;
+using System.Threading.Tasks;
+using System.Linq;
 
-namespace PlaywrightTests;
-
-public class ElementoInput
+namespace Test
 {
-    [LoadColumn(0)]
-    public string Tag { get; set; }
-    [LoadColumn(1)]
-    public string Role { get; set; }
-    [LoadColumn(2)]
-    public string Acao { get; set; }
-    [LoadColumn(3)]
-    public string Type { get; set; }
-    [LoadColumn(4)]
-    public string Text { get; set; }
-}
-
-public class ElementoPrediction
-{
-    [ColumnName("PredictedLabel")]
-    public string Acao { get; set; }
-}
-
-[TestClass]
-public class MLWebExplorerTest : PageTest
-{
-    private static PredictionEngine<ElementoInput, ElementoPrediction>? _predictionEngine;
-    private static MLContext _mlContext = new();
-    private static ITransformer? _model;
-    private static string _datasetPath = "treino_interativo.csv";
-
-    [ClassInitialize]
-    public static void InicializarModelo(TestContext context)
+    [TestClass]
+    public class PageTagTests
     {
-        if (!File.Exists(_datasetPath))
+        private static IBrowser _browser;
+        private static IPage _page;
+        private static IPlaywright _playwright;
+
+        // Lista de tags de formulário HTML
+        private static readonly string[] FormTags = new[]
         {
-            File.WriteAllText(_datasetPath, "Tag,Role,Acao,Type,Text\n"); // Cabeçalho
-        }
-        TreinarModelo();
-    }
-
-    private static void TreinarModelo()
-    {
-        var data = _mlContext.Data.LoadFromTextFile<ElementoInput>(
-            _datasetPath, hasHeader: true, separatorChar: ',');
-
-        var pipeline = _mlContext.Transforms.Conversion
-            .MapValueToKey("Label", nameof(ElementoInput.Acao))
-            .Append(_mlContext.Transforms.Categorical.OneHotEncoding("Tag"))
-            .Append(_mlContext.Transforms.Categorical.OneHotEncoding("Role"))
-            .Append(_mlContext.Transforms.Categorical.OneHotEncoding("Type"))
-            .Append(_mlContext.Transforms.Categorical.OneHotEncoding("Text"))
-            .Append(_mlContext.Transforms.Concatenate("Features", "Tag", "Role", "Type", "Text"))
-            .Append(_mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy("Label", "Features"))
-            .Append(_mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
-
-        _model = pipeline.Fit(data);
-        _predictionEngine = _mlContext.Model.CreatePredictionEngine<ElementoInput, ElementoPrediction>(_model);
-    }
-
-    private static void AdicionarExemploTreino(ElementoInput exemplo)
-    {
-        // Adiciona o exemplo ao CSV
-        var linha = $"{exemplo.Tag},{exemplo.Role},{exemplo.Acao},{exemplo.Type},{exemplo.Text}";
-        File.AppendAllText(_datasetPath, linha + Environment.NewLine);
-
-        // Re-treina o modelo
-        TreinarModelo();
-    }
-
-    private string DecidirAcaoML(string tag, string role, string type, string text)
-    {
-        if (_predictionEngine == null)
-            return "ignore";
-        var input = new ElementoInput { Tag = tag, Role = role, Type = type, Text = text };
-        var prediction = _predictionEngine.Predict(input);
-        return prediction.Acao;
-    }
-
-    [TestMethod]
-    public async Task ExplorarInterfaceWeb()
-    {
-        var launchOptions = new BrowserTypeLaunchOptions
-        {
-            Headless = false
+            "form", "input", "select", "textarea", "button", "label", "fieldset", "legend", "datalist", "output", "optgroup", "option"
         };
-        await using var browser = await Playwright.Chromium.LaunchAsync(launchOptions);
-        var context = await browser.NewContextAsync();
-        var page = await context.NewPageAsync();
 
-        await page.GotoAsync("https://playwright.dev");
-
-        var elementos = await page.QuerySelectorAllAsync("a,button,input");
-
-        foreach (var elemento in elementos)
+        [ClassInitialize]
+        public static async Task ClassInit(TestContext context)
         {
-            var tag = await elemento.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-            var role = await elemento.GetAttributeAsync("role") ?? "";
-            var type = await elemento.GetAttributeAsync("type") ?? "";
-            var text = await elemento.InnerTextAsync() ?? "";
+            _playwright = await Playwright.CreateAsync();
+            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+            var page = await _browser.NewPageAsync();
+            // Substitua pela URL da página a ser testada
+            await page.GotoAsync("https://sua-url.com");
+            _page = page;
+        }
 
-            // Predição do modelo
-            var acao = DecidirAcaoML(tag, role, type, text);
+        [ClassCleanup]
+        public static async Task ClassCleanup()
+        {
+            await _browser.CloseAsync();
+            _playwright.Dispose();
+        }
 
-            // Exemplo: callback para registrar ação real do usuário
-            Console.WriteLine($"Elemento: <{tag}> role='{role}' type='{type}' text='{text}'");
-            Console.Write("Qual ação você executou (click/type/check/uncheck/select/ignore)? ");
-            var acaoUsuario = Console.ReadLine()?.Trim().ToLower() ?? "ignore";
+        [DataTestMethod]
+        [DynamicData(nameof(GetFormTags), DynamicDataSourceType.Method)]
+        public async Task TagDeFormulario_Deve_Estar_Visivel(string tag)
+        {
+            var elements = await _page.QuerySelectorAllAsync(tag);
+            Assert.IsTrue(elements.Any(), $"Tag <{tag}> não encontrada na página.");
 
-            // Adiciona exemplo e re-treina
-            var exemplo = new ElementoInput
+            foreach (var element in elements)
             {
-                Tag = tag,
-                Role = role,
-                Acao = acaoUsuario,
-                Type = type,
-                Text = text
-            };
-            AdicionarExemploTreino(exemplo);
+                bool isVisible = await element.IsVisibleAsync();
+                Assert.IsTrue(isVisible, $"Elemento <{tag}> não está visível.");
+            }
+        }
 
-            // Executa ação prevista (opcional)
-            switch (acao)
+        [TestMethod]
+        public async Task Deve_Existir_Opcao_De_Salvar()
+        {
+            // Busca por botões ou inputs do tipo submit ou com texto relacionado a salvar
+            var saveButtons = await _page.QuerySelectorAllAsync("button, input[type=submit], input[type=button]");
+            bool found = false;
+
+            foreach (var btn in saveButtons)
             {
-                case "click":
-                    try { await elemento.ClickAsync(); } catch { }
-                    break;
-                case "type":
-                    try { await elemento.TypeAsync("Teste ML"); } catch { }
-                    break;
-                case "check":
-                    try { await elemento.CheckAsync(); } catch { }
-                    break;
-                case "uncheck":
-                    try { await elemento.UncheckAsync(); } catch { }
-                    break;
-                case "select":
-                    try
+                var type = await btn.GetAttributeAsync("type");
+                var text = (await btn.InnerTextAsync()).ToLowerInvariant();
+
+                if ((type == "submit" || type == "button") ||
+                    text.Contains("salvar") || text.Contains("save") || text.Contains("gravar"))
+                {
+                    bool isVisible = await btn.IsVisibleAsync();
+                    if (isVisible)
                     {
-                        var options = await elemento.QuerySelectorAllAsync("option");
-                        if (options.Count > 0)
-                        {
-                            var value = await options[0].GetAttributeAsync("value");
-                            if (value != null)
-                                await elemento.SelectOptionAsync(value);
-                        }
+                        found = true;
+                        break;
                     }
-                    catch { }
-                    break;
-                default:
-                    break;
+                }
+            }
+
+            Assert.IsTrue(found, "Nenhuma opção de salvar (submit/button) visível encontrada na página.");
+        }
+
+        public static System.Collections.Generic.IEnumerable<object[]> GetFormTags()
+        {
+            foreach (var tag in FormTags)
+            {
+                yield return new object[] { tag };
             }
         }
     }

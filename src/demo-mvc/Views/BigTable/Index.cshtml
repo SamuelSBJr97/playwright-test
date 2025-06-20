@@ -1,0 +1,39 @@
+@model IEnumerable<DemoTestProject.Models.BigTableItem>
+@{
+    ViewData["Title"] = "Tabela Grande";
+    var currentPage = (int)ViewBag.CurrentPage;
+    var totalPages = (int)ViewBag.TotalPages;
+}
+<h2>Tabela com 1.000.000 de registros</h2>
+<table class="table table-sm table-bordered">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Nome</th>
+            <th>Valor</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach(var item in Model)
+    {
+        <tr>
+            <td>@item.Id</td>
+            <td>@item.Name</td>
+            <td>@item.Value</td>
+        </tr>
+    }
+    </tbody>
+</table>
+<div>
+    Página @currentPage de @totalPages
+    <div>
+        @if(currentPage > 1)
+        {
+            <a href="?page=@(currentPage-1)">Anterior</a>
+        }
+        @if(currentPage < totalPages)
+        {
+            <a href="?page=@(currentPage+1)">Próxima</a>
+        }
+    </div>
+</div>

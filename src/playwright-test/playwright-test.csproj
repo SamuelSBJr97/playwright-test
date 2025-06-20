@@ -55,4 +55,8 @@
     <PackageReference Update="MSTest.TestFramework" Version="3.9.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
+
 </Project>
