@@ -17,14 +17,14 @@ public class ExampleTest : PageTest
     }
 
     [TestMethod]
-    public async Task GetStartedLink()
+    public async Task MyTest()
     {
-        await Page.GotoAsync("https://playwright.dev");
-
-        // Click the get started link.
-        await Page.GetByRole(AriaRole.Link, new() { Name = "Get started" }).ClickAsync();
-
-        // Expects page to have a heading with the name of Installation.
-        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Installation" })).ToBeVisibleAsync();
+        await Page.GotoAsync("https://playwright.dev/");
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "GitHub repository" })).ToBeVisibleAsync();
+        var page1 = await Page.RunAndWaitForPopupAsync(async () =>
+        {
+            await Page.GetByRole(AriaRole.Link, new() { Name = "GitHub repository" }).ClickAsync();
+        });
+        await Page.GotoAsync("https://github.com/microsoft/playwright");
     }
 }
