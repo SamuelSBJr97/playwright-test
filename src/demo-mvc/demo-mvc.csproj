@@ -8,10 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="Views\BigTable\Index.cshtml" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="Views\BigTable\Index.cshtml" />
   </ItemGroup>
 

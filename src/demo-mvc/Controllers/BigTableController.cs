@@ -1,4 +1,5 @@
 using DemoTestProject.Data;
+using DemoTestProject.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +10,23 @@ namespace DemoTestProject.Controllers
         private readonly AppDbContext _context;
         private const int PageSize = 100;
 
-        public BigTableController(AppDbContext context) => _context = context;
+        public BigTableController(AppDbContext context)
+        {
+            _context = context;
+
+            var items = new List<BigTableItem>();
+            for (int i = 1; i <= 1_000_000; i++)
+            {
+                items.Add(new BigTableItem
+                {
+                    Id = i,
+                    Name = $"Item {i}",
+                    Value = $"Valor {i}"
+                });
+            }
+            context.BigTableItems.AddRange(items);
+            context.SaveChanges();
+        }
 
         public async Task<IActionResult> Index(int page = 1)
         {
